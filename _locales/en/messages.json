@@ -1,0 +1,10 @@
+{
+    "extension_name": {
+        "message": "AI Captcha Solver",
+        "description": "Extension name"
+    },
+    "extension_description": {
+        "message": "Automatically recognize and fill captchas using AI models",
+        "description": "Extension description"
+    }
+}

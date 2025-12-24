@@ -1,0 +1,10 @@
+{
+    "extension_name": {
+        "message": "AI Captcha Solver",
+        "description": "扩展名称"
+    },
+    "extension_description": {
+        "message": "使用AI大模型自动识别和填充验证码",
+        "description": "扩展描述"
+    }
+}

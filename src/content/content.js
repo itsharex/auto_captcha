@@ -797,7 +797,7 @@
      */
     function handleStartPicker(sendResponse) {
         // 创建选择器
-        initElementPicker((result) => {
+        initElementPicker(async (result) => {
             if (result.cancelled) {
                 sendResponse({ success: false, cancelled: true });
             } else if (result.success) {
@@ -819,6 +819,24 @@
 
                 detector.detectedCaptchas = [currentCaptcha];
 
+                // 直接保存网站规则到storage（通过Service Worker）
+                try {
+                    await chrome.runtime.sendMessage({
+                        action: 'saveSiteRule',
+                        hostname: location.hostname,
+                        rule: {
+                            selector: result.selector,
+                            info: result.info
+                        }
+                    });
+                    logger.info('网站规则已保存', { hostname: location.hostname, selector: result.selector });
+
+                    // 显示成功提示
+                    showSaveSuccessToast(result.selector);
+                } catch (error) {
+                    logger.error('保存规则失败', error);
+                }
+
                 sendResponse({
                     success: true,
                     selector: result.selector,
@@ -829,6 +847,60 @@
         });
 
         return true; // 保持消息通道开放
+    }
+
+    /**
+     * 显示保存成功的提示
+     */
+    function showSaveSuccessToast(selector) {
+        // 移除已有的提示
+        const existing = document.getElementById('captcha-save-toast');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'captcha-save-toast';
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            z-index: 999999;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideDown 0.3s ease;
+        `;
+
+        toast.innerHTML = `
+            <span style="font-size: 18px;">✅</span>
+            <span>验证码规则已保存！下次访问将自动识别</span>
+        `;
+
+        // 添加动画样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideDown {
+                from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+                to { opacity: 1; transform: translateX(-50%) translateY(0); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        document.body.appendChild(toast);
+
+        // 3秒后自动消失
+        setTimeout(() => {
+            toast.style.transition = 'opacity 0.3s ease';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     }
 
     /**

@@ -3,7 +3,7 @@
 一个功能完整的Chrome扩展程序，使用AI大模型自动识别和填充验证码。
 
 
-[![说明](https://im.gurl.eu.org/file/AgACAgEAAxkDAAEBV5NpTRN5EDFxg4VtsP4T0xOdYxQbegACLQxrG_gcaUY33-2uJikFegEAAwIAA3cAAzYE.png)](说明)
+[![说明](./images/示例.png)](说明)
 
 ## ✨ 功能特性
 

@@ -122,7 +122,7 @@ async function loadConfig() {
 }
 
 /**
- * 检查页面状态
+ * 检查页面状态（自动扫描验证码）
  */
 async function checkPageStatus() {
     try {
@@ -133,14 +133,13 @@ async function checkPageStatus() {
             return;
         }
 
-        // 发送消息到内容脚本
-        const response = await chrome.tabs.sendMessage(tab.id, { action: 'getStatus' });
+        // 主动执行扫描以检测验证码
+        const scanResponse = await chrome.tabs.sendMessage(tab.id, { action: 'scan' });
 
-        if (response.success) {
-            if (response.hasCaptcha) {
-                updateCaptchaInfo(response.currentCaptcha);
-                elements.btnRecognize.disabled = false;
-            }
+        if (scanResponse.success && scanResponse.captchas.length > 0) {
+            currentCaptcha = scanResponse.bestCaptcha;
+            updateCaptchaInfo(scanResponse.bestCaptcha);
+            elements.btnRecognize.disabled = false;
         }
     } catch (error) {
         // 内容脚本可能未加载

@@ -57,6 +57,7 @@ function cacheElements() {
     elements.retryCount = document.getElementById('retry-count');
     elements.autoFill = document.getElementById('auto-fill');
     elements.autoSubmit = document.getElementById('auto-submit');
+    elements.autoSolveOnRule = document.getElementById('auto-solve-on-rule');
     elements.historyRetention = document.getElementById('history-retention');
     elements.debugMode = document.getElementById('debug-mode');
     elements.btnSaveSettings = document.getElementById('btn-save-settings');
@@ -417,6 +418,7 @@ async function loadSettings() {
     elements.retryCount.value = settings.retryCount;
     elements.autoFill.checked = settings.autoFill;
     elements.autoSubmit.checked = settings.autoSubmit;
+    elements.autoSolveOnRule.checked = settings.autoSolveOnRule;
     elements.historyRetention.value = settings.historyRetention;
     elements.debugMode.checked = settings.debugMode;
 }
@@ -430,6 +432,7 @@ async function saveSettings() {
         retryCount: parseInt(elements.retryCount.value),
         autoFill: elements.autoFill.checked,
         autoSubmit: elements.autoSubmit.checked,
+        autoSolveOnRule: elements.autoSolveOnRule.checked,
         historyRetention: parseInt(elements.historyRetention.value),
         debugMode: elements.debugMode.checked
     };

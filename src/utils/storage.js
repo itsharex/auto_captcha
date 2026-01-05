@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS = {
   retryCount: 3,
   autoFill: true,
   autoSubmit: false,
+  autoSolveOnRule: false,
   debugMode: false,
   historyRetention: 7 // 天数
 };

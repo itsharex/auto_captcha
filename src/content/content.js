@@ -597,12 +597,67 @@
     let currentCaptcha = null;
     let isProcessing = false;
 
-    function init() {
+    async function init() {
         // 初始化调试模式设置
-        initDebugMode();
+        await initDebugMode();
         logger.info('内容脚本已加载');
         chrome.runtime.onMessage.addListener(handleMessage);
-        setTimeout(() => scanPage(), 1000);
+        
+        // 延迟扫描和应用规则
+        setTimeout(async () => {
+            scanPage();
+            await checkAndApplySiteRule();
+        }, 1000);
+    }
+
+    /**
+     * 检查并应用网站规则
+     */
+    async function checkAndApplySiteRule() {
+        try {
+            // 获取设置
+            const settingsResponse = await chrome.runtime.sendMessage({ action: 'getSettings' });
+            const settings = settingsResponse.success ? settingsResponse.settings : {};
+
+            // 获取网站规则
+            const ruleResponse = await chrome.runtime.sendMessage({
+                action: 'getSiteRule',
+                hostname: location.hostname
+            });
+
+            if (ruleResponse.success && ruleResponse.rule) {
+                logger.info('发现网站规则', ruleResponse.rule);
+                
+                // 应用规则
+                await handleApplySiteRule(ruleResponse.rule.selector, async (result) => {
+                    if (result.success && settings.autoSolveOnRule) {
+                        logger.info('自动识别已启用，开始识别...');
+                        
+                        // 稍微延迟以确保高亮效果可见
+                        setTimeout(() => {
+                            handleRecognize(result.captcha.id, (response) => {
+                                if (response && response.success && response.text) {
+                                    logger.info('自动识别成功:', response.text);
+                                    
+                                    // 自动填充
+                                    handleFill(response.text, { autoSubmit: settings.autoSubmit }, (fillResult) => {
+                                        if (fillResult && fillResult.success) {
+                                            logger.info('自动填充完成');
+                                        } else {
+                                            logger.error('自动填充失败:', fillResult ? fillResult.error : '未知错误');
+                                        }
+                                    });
+                                } else {
+                                    logger.error('自动识别失败:', response ? response.error : '未知错误');
+                                }
+                            });
+                        }, 500);
+                    }
+                });
+            }
+        } catch (error) {
+            logger.error('检查网站规则失败', error);
+        }
     }
 
     function handleMessage(message, sender, sendResponse) {

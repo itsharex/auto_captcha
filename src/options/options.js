@@ -62,6 +62,12 @@ function cacheElements() {
     elements.debugMode = document.getElementById('debug-mode');
     elements.btnSaveSettings = document.getElementById('btn-save-settings');
 
+    // 数据管理
+    elements.btnExportConfig = document.getElementById('btn-export-config');
+    elements.btnImportConfig = document.getElementById('btn-import-config');
+    elements.importFileInput = document.getElementById('import-file-input');
+    elements.importOverwrite = document.getElementById('import-overwrite');
+
     // 历史记录
     elements.historyList = document.getElementById('history-list');
     elements.btnClearHistory = document.getElementById('btn-clear-history');
@@ -106,6 +112,11 @@ function bindEvents() {
 
     // 设置
     elements.btnSaveSettings.addEventListener('click', saveSettings);
+
+    // 数据管理
+    elements.btnExportConfig.addEventListener('click', exportConfigs);
+    elements.btnImportConfig.addEventListener('click', () => elements.importFileInput.click());
+    elements.importFileInput.addEventListener('change', importConfigs);
 
     // 历史
     elements.btnClearHistory.addEventListener('click', clearHistory);
@@ -590,6 +601,104 @@ function formatTime(timestamp) {
         return `${Math.floor(diff / 3600000)}小时前`;
     } else {
         return date.toLocaleDateString('zh-CN');
+    }
+}
+
+// ==================== 数据导入导出 ====================
+
+/**
+ * 导出配置
+ */
+async function exportConfigs() {
+    try {
+        elements.btnExportConfig.disabled = true;
+        elements.btnExportConfig.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            导出中...
+        `;
+
+        const data = await storage.exportAllConfigs();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `captcha_solver_config_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('配置已导出', 'success');
+    } catch (error) {
+        showToast(`导出失败: ${error.message}`, 'error');
+    } finally {
+        elements.btnExportConfig.disabled = false;
+        elements.btnExportConfig.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            导出配置
+        `;
+    }
+}
+
+/**
+ * 导入配置
+ */
+async function importConfigs(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+        elements.btnImportConfig.disabled = true;
+        elements.btnImportConfig.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            导入中...
+        `;
+
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const overwrite = elements.importOverwrite.checked;
+
+        const stats = await storage.importAllConfigs(data, overwrite);
+
+        // 刷新数据显示
+        await loadData();
+
+        // 构建结果消息
+        const messages = [];
+        if (stats.apiConfigs > 0) messages.push(`${stats.apiConfigs}个API配置`);
+        if (stats.settings) messages.push('识别设置');
+        if (stats.siteRules > 0) messages.push(`${stats.siteRules}个网站规则`);
+
+        if (messages.length > 0) {
+            showToast(`已导入: ${messages.join(', ')}`, 'success');
+        } else {
+            showToast('没有新配置被导入（可能已存在同名配置）', 'info');
+        }
+    } catch (error) {
+        showToast(`导入失败: ${error.message}`, 'error');
+    } finally {
+        elements.btnImportConfig.disabled = false;
+        elements.btnImportConfig.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            导入配置
+        `;
+        // 重置文件输入
+        elements.importFileInput.value = '';
     }
 }
 

@@ -435,3 +435,111 @@ export async function clearSiteRules() {
   await set({ [SITE_RULES_KEY]: {} });
 }
 
+// ==================== 配置导入导出 ====================
+
+/**
+ * 导出所有配置
+ * @returns {Promise<object>} - 导出的配置对象
+ */
+export async function exportAllConfigs() {
+  // 获取解密后的API配置
+  const apiConfigs = await getDecryptedApiConfigs();
+  const activeConfigId = await getActiveConfigId();
+  const settings = await getSettings();
+  const siteRules = await getSiteRules();
+
+  return {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    data: {
+      apiConfigs,
+      activeConfigId,
+      settings,
+      siteRules
+    }
+  };
+}
+
+/**
+ * 导入配置
+ * @param {object} exportData - 导出的配置数据
+ * @param {boolean} overwrite - 是否覆盖现有配置（false则合并）
+ * @returns {Promise<object>} - 导入结果统计
+ */
+export async function importAllConfigs(exportData, overwrite = false) {
+  if (!exportData || !exportData.data) {
+    throw new Error('无效的配置文件格式');
+  }
+
+  const { data } = exportData;
+  const stats = {
+    apiConfigs: 0,
+    settings: false,
+    siteRules: 0
+  };
+
+  // 导入API配置
+  if (data.apiConfigs && Array.isArray(data.apiConfigs)) {
+    if (overwrite) {
+      // 覆盖模式：清空现有配置后导入
+      await saveApiConfigs(data.apiConfigs);
+      stats.apiConfigs = data.apiConfigs.length;
+    } else {
+      // 合并模式：逐个添加，跳过同名配置
+      const existingConfigs = await getDecryptedApiConfigs();
+      const existingNames = new Set(existingConfigs.map(c => c.name));
+      
+      for (const config of data.apiConfigs) {
+        if (!existingNames.has(config.name)) {
+          // 移除原有ID，让系统生成新ID
+          const { id, createdAt, updatedAt, ...configData } = config;
+          await addApiConfig(configData);
+          stats.apiConfigs++;
+        }
+      }
+    }
+  }
+
+  // 导入设置
+  if (data.settings) {
+    if (overwrite) {
+      await saveSettings(data.settings);
+    } else {
+      // 合并模式：导入的设置覆盖当前设置
+      const currentSettings = await getSettings();
+      await saveSettings({ ...currentSettings, ...data.settings });
+    }
+    stats.settings = true;
+  }
+
+  // 导入网站规则
+  if (data.siteRules && typeof data.siteRules === 'object') {
+    if (overwrite) {
+      await set({ [SITE_RULES_KEY]: data.siteRules });
+      stats.siteRules = Object.keys(data.siteRules).length;
+    } else {
+      // 合并模式：逐个添加，跳过已存在的域名
+      const existingRules = await getSiteRules();
+      for (const [hostname, rule] of Object.entries(data.siteRules)) {
+        if (!existingRules[hostname]) {
+          await saveSiteRule(hostname, rule);
+          stats.siteRules++;
+        }
+      }
+    }
+  }
+
+  // 设置活跃配置ID
+  if (data.activeConfigId && overwrite) {
+    const configs = await getApiConfigs();
+    const configExists = configs.some(c => c.id === data.activeConfigId);
+    if (configExists) {
+      await setActiveConfigId(data.activeConfigId);
+    } else if (configs.length > 0) {
+      await setActiveConfigId(configs[0].id);
+    }
+  }
+
+  return stats;
+}
+
